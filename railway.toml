@@ -1,6 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "./image/rudi-portal/Dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "docker compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile '*' up"
