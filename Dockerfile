@@ -1,36 +1,50 @@
-FROM docker:24.0-dind
+FROM ubuntu:22.04
 
-# Install required dependencies and Docker Compose
-RUN apk add --no-cache \
-    bash \
-    git \
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    uidmap \
+    dbus-user-session \
+    fuse-overlayfs \
     curl \
-    docker-compose
+    git \
+    iptables \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker
+RUN curl -fsSL https://get.docker.com/rootless | sh
+
+# Install Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose && \
+    chmod +x /usr/local/bin/docker-compose
 
 WORKDIR /app
 
 # Copy the entire repository
 COPY . .
 
-# Create entrypoint script
-RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo 'set -e' >> /entrypoint.sh && \
-    echo '' >> /entrypoint.sh && \
-    echo '# Start the docker daemon' >> /entrypoint.sh && \
-    echo 'dockerd &' >> /entrypoint.sh && \
-    echo '' >> /entrypoint.sh && \
-    echo '# Wait for docker daemon to be ready' >> /entrypoint.sh && \
-    echo 'while ! docker info > /dev/null 2>&1; do' >> /entrypoint.sh && \
-    echo '  echo "Waiting for docker daemon..."' >> /entrypoint.sh && \
-    echo '  sleep 1' >> /entrypoint.sh && \
-    echo 'done' >> /entrypoint.sh && \
-    echo '' >> /entrypoint.sh && \
-    echo '# Start docker-compose' >> /entrypoint.sh && \
-    echo 'exec docker-compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile "*" up' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+# Create supervisor configuration
+RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo '[program:dockerd]' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'command=/home/rootless/.local/bin/dockerd-rootless.sh' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'user=rootless' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'environment=HOME="/home/rootless",USER="rootless",PATH="/home/rootless/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo '[program:compose]' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'command=/usr/local/bin/docker-compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile "*" up' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'user=rootless' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'environment=HOME="/home/rootless",USER="rootless",PATH="/home/rootless/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",DOCKER_HOST="unix:///run/user/1000/docker.sock"' >> /etc/supervisor/conf.d/supervisord.conf
 
-ENV DOCKER_TLS_CERTDIR=""
-ENV DOCKER_HOST="unix:///var/run/docker.sock"
+# Create rootless user
+RUN useradd -m -u 1000 rootless && \
+    mkdir -p /home/rootless/.local/bin && \
+    chown -R rootless:rootless /app /home/rootless
 
-# Start command
-ENTRYPOINT ["/entrypoint.sh"]
+# Set environment variables
+ENV DOCKER_HOST="unix:///run/user/1000/docker.sock"
+ENV XDG_RUNTIME_DIR="/run/user/1000"
+ENV PATH="/home/rootless/.local/bin:${PATH}"
+
+# Start supervisord
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
