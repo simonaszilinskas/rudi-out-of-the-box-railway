@@ -24,15 +24,36 @@ COPY . .
 # Create supervisor configuration
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:dockerd]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=/usr/sbin/dockerd' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'command=/usr/bin/dockerd' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'priority=1' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:compose]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=docker compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile "*" up' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf
+    echo 'command=sh -c "while ! docker info > /dev/null 2>&1; do sleep 1; done && docker compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile \"*\" up"' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'priority=2' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf
 
-# Create startup script
+# Create startup script with verification
 RUN echo '#!/bin/bash' > /start.sh && \
+    echo 'set -e' >> /start.sh && \
     echo 'mkdir -p /var/run/docker' >> /start.sh && \
+    echo 'if [ -x "$(command -v dockerd)" ]; then' >> /start.sh && \
+    echo '    echo "Docker daemon found at $(command -v dockerd)"' >> /start.sh && \
+    echo 'else' >> /start.sh && \
+    echo '    echo "Docker daemon not found"' >> /start.sh && \
+    echo '    exit 1' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    echo 'if [ -x "$(command -v docker)" ]; then' >> /start.sh && \
+    echo '    echo "Docker client found at $(command -v docker)"' >> /start.sh && \
+    echo 'else' >> /start.sh && \
+    echo '    echo "Docker client not found"' >> /start.sh && \
+    echo '    exit 1' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
     echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /start.sh && \
     chmod +x /start.sh
 
