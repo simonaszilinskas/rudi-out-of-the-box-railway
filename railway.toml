@@ -11,6 +11,7 @@ restartPolicyMaxRetries = 3
 [service]
 internal_port = "80"
 auto_deploy = true
+privileged = true
 
 [variables]
 base_dn = "$RAILWAY_DOMAIN"
