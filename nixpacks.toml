@@ -1,0 +1,10 @@
+[phases.setup]
+nixPkgs = ["docker", "docker-compose"]
+
+[phases.build]
+cmds = [
+  "docker-compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile '*' build"
+]
+
+[start]
+cmd = "docker-compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile '*' up"
