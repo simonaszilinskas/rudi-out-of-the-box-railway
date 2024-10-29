@@ -11,7 +11,6 @@ restartPolicyMaxRetries = 3
 [service]
 internal_port = "80"
 auto_deploy = true
-privileged = true
 
 [variables]
 base_dn = "$RAILWAY_DOMAIN"
@@ -21,4 +20,3 @@ DATAVERSE_VERSION = "latest"
 POSTGRES_VERSION = "13"
 DOCKER_BUILDKIT = "1"
 COMPOSE_DOCKER_CLI_BUILD = "1"
-DOCKER_TLS_CERTDIR = ""
