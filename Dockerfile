@@ -1,4 +1,4 @@
-FROM docker:23-cli
+FROM docker:23-dind
 
 # Install required dependencies and Docker Compose
 RUN apk add --no-cache \
@@ -16,7 +16,15 @@ COPY . .
 # Set environment variables
 ENV COMPOSE_DOCKER_CLI_BUILD=1
 ENV DOCKER_BUILDKIT=1
+ENV DOCKER_HOST=unix:///var/run/docker.sock
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Start command using Docker Compose
-CMD ["/usr/local/bin/docker-compose", "-f", "docker-compose-magnolia.yml", "-f", "docker-compose-rudi.yml", "-f", "docker-compose-dataverse.yml", "-f", "docker-compose-network.yml", "--profile", "*", "up"]
+# Create startup script
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'dockerd-entrypoint.sh &' >> /start.sh && \
+    echo 'sleep 5' >> /start.sh && \
+    echo 'docker compose -f docker-compose-magnolia.yml -f docker-compose-rudi.yml -f docker-compose-dataverse.yml -f docker-compose-network.yml --profile "*" up' >> /start.sh && \
+    chmod +x /start.sh
+
+# Start command
+CMD ["/start.sh"]
