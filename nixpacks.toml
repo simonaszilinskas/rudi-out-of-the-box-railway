@@ -1,6 +1,10 @@
 [phases.setup]
-aptPkgs = ["docker.io"]
+aptPkgs = [
+    "uidmap",
+    "dbus-user-session",
+    "fuse-overlayfs",
+    "supervisor"
+]
 
 [start]
-cmd = "/entrypoint.sh"
-runImage = "docker:24.0-dind"
+cmd = "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
